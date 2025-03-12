@@ -1,57 +1,27 @@
 #!/bin/bash -u
 
 # fde-packages
-export PACKAGELIST="base \
+export PACKAGELIST="acpi \
+acpi_call \
+acpid \
+avahi \
+base \
+base-devel \
+cups \
+git \
+grub \
+intel-ucode \
+libxkbcommon \
+libxkbcomon-x11 \
 linux \
 linux-firmware \
-linux-headers \
-neovim \
-git \
-curl \
-intel-ucode \
 lvm2 \
-grub \
+nano \
 networkmanager \
-network-manager-applet \
-dialog \
-wpa_supplicant \
-mtools \
-dosfstools \
 reflector \
-base-devel \
-linux-headers \
-avahi \
-xdg-user-dirs \
-xdg-utils \
-gvfs \
-gvfs-smb \
-nfs-utils \
-inetutils \
-dnsutils \
-bluez \
-bluez-utils \
-cups \
-hplip \
-alsa-utils \
-bash-completion \
-openssh \
 rsync \
-acpi \
-acpi_call \
-virt-manager \
-qemu \
-qemu-arch-extra \
-edk2-ovmf \
-bridge-utils \
-dnsmasq \
-vde2 \
-openbsd-netcat \
-iptables-nft \
-ipset \
-sof-firmware \
-nss-mdns \
-acpid \
-ntfs-3g"
+vi \
+zsh"
 
 # fde-blank
 export DEV=""
@@ -59,14 +29,14 @@ export CRYPTNAME="arch-crypt"
 export VGNAME="system"
 export LVROOTNAME="root"
 export LVROOTSIZE="20G"
-export WANTSHOME=1
+export WANTSHOME=0
 export LVHOMENAME="home"
 export LVHOMESIZE="100"
 export LVSWAPNAME="swap"
-export LVSWAPSIZE="2G"
+export LVSWAPSIZE="8G"
 export EFISIZE="1G"
 export TARGETMOUNTPOINT="/mnt/system"
-export NEWHOSTNAME="arch"
+export NEWHOSTNAME="summercamp"
 export ROOTPASS=
 export WANTSSDGRUB=
 export WANTKEY=
@@ -250,7 +220,7 @@ function install_base_system() {
   send_prog "Enabling parallel downloads"
   sed -i 's/^#ParallelDownloads/ParallelDownloads/' "/etc/pacman.conf"
   send_prog "Sorting pacman mirrors via reflector"
-  reflector --latest 5 --country "United States" --sort rate --save /etc/pacman.d/mirrorlist --protocol https --download-timeout 15 >/dev/null 2>&1
+  reflector --latest 5 --country Germany --sort rate --save /etc/pacman.d/mirrorlist --protocol https --download-timeout 15 >/dev/null 2>&1
   send_prog "Installing system to ${DEV}${CRYPTPARTITION}"
   if [[ "${ISEFI}" -eq 1 ]]; then
     pacstrap "${TARGETMOUNTPOINT}" efibootmgr ${PACKAGELIST}
@@ -275,18 +245,18 @@ function enable_multilib() {
 
 function chroot_prep() {
   send_prog "Setting locale"
-  sed -i 's/#en_US.UTF-8/en_US.UTF-8/' "${TARGETMOUNTPOINT}/etc/locale.gen"
-  echo "LANG=en_US.UTF-8" > "${TARGETMOUNTPOINT}/etc/locale.conf"
+  sed -i 's/#de_DE.UTF-8/de_DE.UTF-8/' "${TARGETMOUNTPOINT}/etc/locale.gen"
+  echo "LANG=de_DE.UTF-8" > "${TARGETMOUNTPOINT}/etc/locale.conf"
   send_prog "Setting system hostname to ${NEWHOSTNAME}"
   echo "${NEWHOSTNAME}" > "${TARGETMOUNTPOINT}/etc/hostname"
   if ! grep "127.0.0.1" "${TARGETMOUNTPOINT}/etc/hosts" ; then
     send_prog "Configuring hosts file"
     echo "127.0.0.1 localhost" >> "${TARGETMOUNTPOINT}/etc/hosts"
     echo "::1       localhost" >> "${TARGETMOUNTPOINT}/etc/hosts"
-    echo "127.0.1.1 ${NEWHOSTNAME}.localdomain ${NEWHOSTNAME}" >> "${TARGETMOUNTPOINT}/etc/hosts"
+    echo "127.0.1.1 ${NEWHOSTNAME}.fritz.box ${NEWHOSTNAME}" >> "${TARGETMOUNTPOINT}/etc/hosts"
   fi
   send_prog "Configuring pacman mirrorlist on ${DEV}"
-  echo -e "--sort rate\n--latest 5\n--country \"United States\",Canada\n--save /etc/pacman.d/mirrorlist\n--protocol https\n--download-timeout 15\n--connection-timeout 15" > "${TARGETMOUNTPOINT}/etc/xdg/reflector/reflector.conf"
+  echo -e "--sort rate\n--latest 5\n--country Germany\n--save /etc/pacman.d/mirrorlist\n--protocol https\n--download-timeout 15\n--connection-timeout 15" > "${TARGETMOUNTPOINT}/etc/xdg/reflector/reflector.conf"
 }
 
 function configure_grub_and_hooks() {
@@ -309,7 +279,7 @@ function configure_grub_and_hooks() {
 function chroot_config() {
   send_prog "Chrooting into ${TARGETMOUNTPOINT}"
 cat <<- HEREDOC | arch-chroot "${TARGETMOUNTPOINT}"
-ln -sf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime
 systemctl enable NetworkManager
 systemctl enable cups.service
 systemctl enable avahi-daemon
@@ -328,7 +298,7 @@ HEREDOC
     send_prog "Installing GRUB"
     cat <<- HEREDOC | arch-chroot "${TARGETMOUNTPOINT}"
 mkinitcpio -p linux >/dev/null 2>&1
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="ARCH_GRUB"
+grub-install --target=x86_64-efi --efi-directory=/boot --removable
 grub-mkconfig -o /boot/grub/grub.cfg
 HEREDOC
   else
